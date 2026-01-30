@@ -1,0 +1,31 @@
+plugins {
+    id 'java'
+    id 'application'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
+}
+
+group = 'com.example'
+version = '1.0.0'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'com.googlecode.json-simple:json-simple:1.1.1'
+}
+
+application {
+    // ⚠️ NaraGetSwing.java에 package 선언이 있으면 "패키지명.NaraGetSwing"로 바꿔야 함
+    mainClass = 'NaraGetSwing'
+}
+
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}

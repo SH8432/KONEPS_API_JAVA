@@ -1,8 +1,32 @@
 # API 통신 예시용 서블릿코드 폴더 제외
 API_통신_예시용_서블릿코드/
 
-# 루트 경로의 .class 파일 제외
-/*.class
+# ----- Java / Gradle -----
+*.class
+build/
+.gradle/
+out/
 
-# 모든 위치의 .class 파일 제외 (선택사항)
-# *.class
+# 배포/배포물 (JAR, ZIP, dist)
+dist/
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+
+# ----- IDE / 에디터 -----
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# ----- OS -----
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# ----- 기타 -----
+*.log
+META-INF/MANIFEST.MF
+.env
+.env.local
