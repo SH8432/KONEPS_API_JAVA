@@ -29,3 +29,19 @@ application {
 tasks.withType(JavaCompile) {
     options.encoding = 'UTF-8'
 }
+
+// jpackage로 exe 생성 (Windows): ./gradlew jpackage
+tasks.register('jpackage', Exec) {
+    dependsOn shadowJar
+    def outDir = file("dist").absolutePath
+    doFirst {
+        file("dist/NaraGetSwing").deleteDir()
+    }
+    commandLine 'jpackage',
+        '--type', 'app-image',
+        '--input', file("build/libs").absolutePath,
+        '--main-jar', "NaraGetSwingApp-${version}-all.jar",
+        '--main-class', 'NaraGetSwing',
+        '--name', 'NaraGetSwing',
+        '--dest', outDir
+}
