@@ -193,7 +193,7 @@ public final class NaraGetSwing {
                 List<Map<String, String>> list = new ArrayList<>();
                 for (Map<String, String> row : apiService.fetchAllFilteredRows(
                         NaraApiConfig.BASE_URL,
-                        NaraApiConfig.getServiceKey(),
+                        NaraApiConfig.PersonalAuthKey,
                         lastBgn, lastEnd, lastMinAmt,
                         maxApiPages,
                         connTimeoutMs,
@@ -273,7 +273,7 @@ public final class NaraGetSwing {
                 int requestTimeoutMs = 5000;
                 String jsonData = apiService.callApi(
                         NaraApiConfig.BASE_URL,
-                        NaraApiConfig.getServiceKey(),
+                        NaraApiConfig.PersonalAuthKey,
                         numOfRows,
                         pageNoStr,
                         bgn,
