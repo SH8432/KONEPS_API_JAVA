@@ -22,8 +22,7 @@ dependencies {
 }
 
 application {
-    // ⚠️ NaraGetSwing.java에 package 선언이 있으면 "패키지명.NaraGetSwing"로 바꿔야 함
-    mainClass = 'NaraGetSwing'
+    mainClass = 'com.example.nara.ui.NaraGetSwing'
 }
 
 tasks.withType(JavaCompile) {
@@ -41,7 +40,7 @@ tasks.register('jpackage', Exec) {
         '--type', 'app-image',
         '--input', file("build/libs").absolutePath,
         '--main-jar', "NaraGetSwingApp-${version}-all.jar",
-        '--main-class', 'NaraGetSwing',
+        '--main-class', 'com.example.nara.ui.NaraGetSwing',
         '--name', 'NaraGetSwing',
         '--dest', outDir
 }
