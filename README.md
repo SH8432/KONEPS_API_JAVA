@@ -75,25 +75,7 @@ java -jar build/libs/NaraGetSwingApp-1.0.0-all.jar
 - **Base URL**: `https://apis.data.go.kr/1230000/ao/PubDataOpnStdService/getDataSetOpnStdBidPblancInfo`
 - **인증**: 공공데이터포털에서 발급한 **서비스 키(ServiceKey)** 사용
 
-서비스 키는 **설정 분리**로 관리합니다 (소스에 직접 두지 않음).
-
-| 우선순위 | 방법 | 설명 |
-|----------|------|------|
-| 1 | 환경변수 `NARA_SERVICE_KEY` | 배포·운영 시 권장 |
-| 2 | JVM 옵션 `-Dnara.service.key=키값` | 로컬 실행 시 |
-| 3 | 기본값 (NaraApiConfig) | 미설정 시 로컬 개발용 기본 키 사용 |
-
-예시:
-
-```bash
-# 환경변수로 키 지정 후 실행
-set NARA_SERVICE_KEY=발급받은키값   # Windows CMD
-$env:NARA_SERVICE_KEY="발급받은키값" # PowerShell
-gradlew run
-
-# JVM 옵션으로 지정
-gradlew run --args="" -Dnara.service.key=발급받은키값
-```
+서비스 키는 `NaraApiConfig.PersonalAuthKey` 상수에 하드코딩되어 있습니다. 키를 바꿀 때는 해당 상수만 수정하면 됩니다.
 
 ---
 
