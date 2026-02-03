@@ -2,9 +2,7 @@
 
 **공공데이터포털** [나라장터 공공데이터 개방 표준 서비스](https://www.data.go.kr/) API를 사용해 **입찰 공고 정보**를 조회하는 Java 데스크톱 애플리케이션입니다.
 
-- **콘솔 실행**: `NaraGet` — 터미널에서 조회 결과 출력
-- **GUI 실행**: `NaraGetSwing` — Swing 화면에서 조회·테이블 표시·CSV 저장
-- **테스트/파싱**: `NaraGetTest` — JSON 파싱 및 API 응답 구조 확인용
+- **GUI**: Swing 화면에서 기간·최소 배정예산금액 조건으로 조회, 테이블 표시, 50건 단위 페이지네이션, CSV 저장
 
 ---
 
@@ -23,13 +21,20 @@ KONEPS_API_JAVA/
 ├── settings.gradle
 ├── gradlew / gradlew.bat
 ├── gradle/wrapper/
-├── src/main/java/
-│   ├── NaraGet.java      # 콘솔용 조회 (main)
-│   ├── NaraGetSwing.java # Swing GUI (main, CSV 저장 포함)
-│   └── NaraGetTest.java  # JSON 파싱/테스트
-├── document/             # API 참고 자료
+├── src/main/java/com/example/nara/
+│   ├── config/   NaraApiConfig      # API URL, 서비스 키(환경변수 지원)
+│   ├── dto/      GridResult, BidItemColumn  # 결과·컬럼 정의
+│   ├── client/   NaraApiClient      # HTTP 호출 전담
+│   ├── parser/   NaraResponseParser # JSON 응답 파싱 전담
+│   ├── service/  NaraApiService     # 비즈니스·오케스트레이션
+│   └── ui/       NaraGetSwing      # Swing GUI (main, CSV 저장)
+├── document/
+│   ├── 아키텍처_설명.md   # 실무형 코드 분리·계층별 역할 설명
+│   └── (API 참고 자료)
 └── README.md
 ```
+
+계층별 역할과 “왜 이렇게 나눴는지”는 **`document/아키텍처_설명.md`** 에 상세히 정리되어 있습니다.
 
 ---
 
@@ -45,8 +50,8 @@ gradlew.bat run
 ./gradlew run
 ```
 
-기본 실행 클래스는 `NaraGetSwing`입니다.  
-화면에서 **시작/종료 일시(YYYYMMDDHHMM)**, **건수**, **페이지**를 입력한 뒤 **조회** 후 **CSV 저장**으로 결과를 내보낼 수 있습니다.
+실행 클래스: `com.example.nara.ui.NaraGetSwing`  
+화면에서 **시작/종료 일시(YYYYMMDDHHMM)**, **최소 배정예산금액(억)** 을 입력한 뒤 **조회** 후 **CSV 저장**으로 결과를 내보낼 수 있습니다.
 
 ### 2. Fat JAR로 실행
 
@@ -55,9 +60,12 @@ gradlew.bat run
 java -jar build/libs/NaraGetSwingApp-1.0.0-all.jar
 ```
 
-### 3. 콘솔 전용 실행 (NaraGet)
+### 3. jpackage로 Windows 앱 이미지 생성
 
-`build.gradle`의 `mainClass`를 `NaraGet`으로 바꾼 뒤 `gradlew run` 하거나, IDE에서 `NaraGet`의 `main`을 실행하면 됩니다.
+```bash
+./gradlew jpackage
+# 결과: dist/NaraGetSwing/
+```
 
 ---
 
@@ -65,9 +73,27 @@ java -jar build/libs/NaraGetSwingApp-1.0.0-all.jar
 
 - **API**: `getDataSetOpnStdBidPblancInfo` (공공데이터 개방 표준 서비스)
 - **Base URL**: `https://apis.data.go.kr/1230000/ao/PubDataOpnStdService/getDataSetOpnStdBidPblancInfo`
-- **인증**: 공공데이터포털에서 발급한 **서비스 키(ServiceKey)** 를 쿼리 파라미터로 전달
+- **인증**: 공공데이터포털에서 발급한 **서비스 키(ServiceKey)** 사용
 
-실제 서비스 키는 코드 내 상수(`PersonalAuthKey` 등) 또는 환경 변수/설정 파일로 관리하는 것을 권장합니다.
+서비스 키는 **설정 분리**로 관리합니다 (소스에 직접 두지 않음).
+
+| 우선순위 | 방법 | 설명 |
+|----------|------|------|
+| 1 | 환경변수 `NARA_SERVICE_KEY` | 배포·운영 시 권장 |
+| 2 | JVM 옵션 `-Dnara.service.key=키값` | 로컬 실행 시 |
+| 3 | 기본값 (NaraApiConfig) | 미설정 시 로컬 개발용 기본 키 사용 |
+
+예시:
+
+```bash
+# 환경변수로 키 지정 후 실행
+set NARA_SERVICE_KEY=발급받은키값   # Windows CMD
+$env:NARA_SERVICE_KEY="발급받은키값" # PowerShell
+gradlew run
+
+# JVM 옵션으로 지정
+gradlew run --args="" -Dnara.service.key=발급받은키값
+```
 
 ---
 
@@ -80,7 +106,8 @@ java -jar build/libs/NaraGetSwingApp-1.0.0-all.jar
 
 ## 참고 자료
 
-- `document/` 폴더: 조달청 Open API 참고자료 (나라장터 공공데이터 개방 표준 서비스)
+- **`document/아키텍처_설명.md`**: 실무형 패키지·계층 분리, 유지보수·추가 개발 관점 설명
+- **`document/`** 폴더: 조달청 Open API 참고자료 (나라장터 공공데이터 개방 표준 서비스)
 - [공공데이터포털](https://www.data.go.kr/) 에서 서비스 키 신청 및 API 문서 확인
 
 ---
