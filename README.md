@@ -2,7 +2,7 @@
 
 **공공데이터포털** [나라장터 공공데이터 개방 표준 서비스](https://www.data.go.kr/) API를 사용해 **입찰 공고 정보**를 조회하는 Java 데스크톱 애플리케이션입니다.
 
-- **GUI**: Swing 화면에서 기간·최소 배정예산금액 조건으로 조회, 테이블 표시, 50건 단위 페이지네이션, CSV 저장
+- **GUI**: Swing 화면에서 기간·최소 배정예산금액·공고명 검색어·업무구분(물품/용역/전체) 조건으로 조회, 테이블 표시, 50건 단위 페이지네이션, 현재 페이지/전체 결과 CSV 저장
 
 ---
 
@@ -22,7 +22,7 @@ KONEPS_API_JAVA/
 ├── gradlew / gradlew.bat
 ├── gradle/wrapper/
 ├── src/main/java/com/softbase/nara/
-│   ├── config/   NaraApiConfig      # API URL, 서비스 키(환경변수 지원)
+│   ├── config/   NaraApiConfig      # API URL, 개인 인증키(PersonalAuthKey) 상수
 │   ├── dto/      GridResult, BidItemColumn  # 결과·컬럼 정의
 │   ├── client/   NaraApiClient      # HTTP 호출 전담
 │   ├── parser/   NaraResponseParser # JSON 응답 파싱 전담
@@ -51,7 +51,7 @@ gradlew.bat run
 ```
 
 실행 클래스: `com.softbase.nara.ui.NaraGetSwing`  
-화면에서 **시작/종료 일시(YYYYMMDDHHMM)**, **최소 배정예산금액(억)** 을 입력한 뒤 **조회** 후 **CSV 저장**으로 결과를 내보낼 수 있습니다.
+화면에서 **시작/종료 일시(날짜+시간 스피너)**, **최소 배정예산금액(원)**, **공고명 검색어**, **업무구분(물품/용역/전체)** 을 입력한 뒤 **조회** 버튼으로 화면에 표시하고, **CSV 저장** 메뉴에서 현재 페이지 또는 전체 결과를 파일로 저장할 수 있습니다.
 
 ### 2. Fat JAR로 실행
 
@@ -83,6 +83,8 @@ java -jar build/libs/NaraGetSwingApp-1.0.0-all.jar
 
 - **CSV 저장** 시 **UTF-8 BOM**을 붙여 저장합니다.
 - Windows 엑셀에서 더블클릭으로 열어도 한글이 깨지지 않도록 되어 있습니다.
+
+CSV 저장 시 **현재 페이지만 저장**과 **조회된 전체 결과 저장** 두 가지 방식을 지원합니다. 전체 결과 저장은 내부적으로 API를 여러 페이지 호출해 필터 조건(최소 배정예산금액·검색어·업무구분)에 맞는 공고만 모두 모아 저장합니다.
 
 ---
 
