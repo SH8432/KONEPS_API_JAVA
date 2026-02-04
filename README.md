@@ -21,7 +21,7 @@ KONEPS_API_JAVA/
 ├── settings.gradle
 ├── gradlew / gradlew.bat
 ├── gradle/wrapper/
-├── src/main/java/com/example/nara/
+├── src/main/java/com/softbase/nara/
 │   ├── config/   NaraApiConfig      # API URL, 서비스 키(환경변수 지원)
 │   ├── dto/      GridResult, BidItemColumn  # 결과·컬럼 정의
 │   ├── client/   NaraApiClient      # HTTP 호출 전담
@@ -50,7 +50,7 @@ gradlew.bat run
 ./gradlew run
 ```
 
-실행 클래스: `com.example.nara.ui.NaraGetSwing`  
+실행 클래스: `com.softbase.nara.ui.NaraGetSwing`  
 화면에서 **시작/종료 일시(YYYYMMDDHHMM)**, **최소 배정예산금액(억)** 을 입력한 뒤 **조회** 후 **CSV 저장**으로 결과를 내보낼 수 있습니다.
 
 ### 2. Fat JAR로 실행
