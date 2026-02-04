@@ -11,6 +11,7 @@ out/
 dist/
 *.jar
 !gradle/wrapper/gradle-wrapper.jar
+*.zip
 
 # ----- IDE / 에디터 -----
 .idea/
