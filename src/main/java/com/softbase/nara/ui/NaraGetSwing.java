@@ -15,6 +15,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.io.FileOutputStream;
+import java.io.File;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
@@ -24,12 +25,15 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Logger;
 
 /*
 나라장터 공고 조회 Swing UI.
 UI 구성·이벤트·CSV 저장만 담당하고, API 호출·파싱·필터링은 Service에 위임.
  */
 public final class NaraGetSwing {
+
+    private static final Logger log = Logger.getLogger(NaraGetSwing.class.getName());
 
     // 한 페이지당 표시 하는 행의 개수
     private static final int ROWS_PER_PAGE = 50;
@@ -398,6 +402,7 @@ public final class NaraGetSwing {
         SwingWorker<GridResult, Void> worker = new SwingWorker<>() {
             @Override
             protected GridResult doInBackground() throws Exception {
+                long loadPageStartMs = System.currentTimeMillis();
                 int connTimeoutMs = 5000;
                 int requestTimeoutMs = 5000;
                 String jsonData = apiService.callApi(
@@ -413,10 +418,12 @@ public final class NaraGetSwing {
                 );
                 String searchOpt = searchKeyword.isEmpty() ? null : searchKeyword;
                 String workOpt = (workType == null || workType.trim().isEmpty() || "전체".equals(workType.trim())) ? null : workType.trim();
-                return apiService.toGridRows(jsonData,
+                GridResult gr = apiService.toGridRows(jsonData,
                         (minAmt == null || minAmt.trim().isEmpty()) ? null : minAmt,
                         searchOpt,
                         workOpt);
+                log.info(String.format("[시간측정] UI 조회(loadPage) | pageNo=%d | %d ms", pageNo, System.currentTimeMillis() - loadPageStartMs));
+                return gr;
             }
 
             @Override
@@ -508,24 +515,133 @@ public final class NaraGetSwing {
     CSV 저장 이벤트 처리
     */
     private void onSaveCsv() {
-        if (tableModel.getRowCount() == 0) {
+        if (tableModel.getRowCount() == 0 && (cachedFilteredRows == null || cachedFilteredRows.isEmpty())) {
             JOptionPane.showMessageDialog(frame, "저장할 데이터가 없습니다.", "안내", JOptionPane.INFORMATION_MESSAGE);
             return;
         }
 
+        String[] options = {"현재 페이지(50건) 저장", "전체 결과 저장"};
+        int choice = JOptionPane.showOptionDialog(
+                frame,
+                "CSV 저장 방식을 선택하세요.",
+                "CSV 저장",
+                JOptionPane.DEFAULT_OPTION,
+                JOptionPane.QUESTION_MESSAGE,
+                null,
+                options,
+                options[0]
+        );
+        if (choice != 0 && choice != 1) return;
+
         JFileChooser chooser = new JFileChooser();
-        chooser.setSelectedFile(new java.io.File("nara_result.csv"));
+        chooser.setSelectedFile(new File("nara_result.csv"));
 
         int ret = chooser.showSaveDialog(frame);
         if (ret != JFileChooser.APPROVE_OPTION) return;
 
-        java.io.File file = chooser.getSelectedFile();
+        File file = chooser.getSelectedFile();
 
+        // 0: 현재 페이지(테이블에 보이는 50건) 저장
+        if (choice == 0) {
+            if (tableModel.getRowCount() == 0) {
+                JOptionPane.showMessageDialog(frame, "현재 페이지에 저장할 데이터가 없습니다.", "안내", JOptionPane.INFORMATION_MESSAGE);
+                return;
+            }
+            try {
+                writeCsvFromTableModel(file);
+                JOptionPane.showMessageDialog(frame, "저장 완료:\n" + file.getAbsolutePath(), "OK", JOptionPane.INFORMATION_MESSAGE);
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(frame, ex.getMessage(), "저장 오류", JOptionPane.ERROR_MESSAGE);
+            }
+            return;
+        }
+
+        // 1: 전체 결과 저장
+        setStatus("전체 결과 CSV 생성 중...");
+        SwingWorker<List<Map<String, String>>, Void> worker = new SwingWorker<>() {
+            @Override
+            protected List<Map<String, String>> doInBackground() throws Exception {
+                // 이미 캐시(필터 조회)된 결과가 있으면 그대로 사용
+                if (cachedFilteredRows != null && !cachedFilteredRows.isEmpty()) {
+                    return cachedFilteredRows;
+                }
+
+                // 캐시가 없으면(=일반 조회) 전체 페이지를 API에서 모두 가져와 저장
+                long saveAllStartMs = System.currentTimeMillis();
+                String bgn = lastBgn != null ? lastBgn : getBidDtFromSpinner(spinnerBgn);
+                String end = lastEnd != null ? lastEnd : getBidDtFromSpinner(spinnerEnd);
+
+                String minAmt = (lastMinAmt == null || lastMinAmt.trim().isEmpty()) ? null : lastMinAmt;
+                String searchOpt = (lastSearch == null || lastSearch.trim().isEmpty()) ? null : lastSearch;
+                String workOpt = (lastWorkType == null || lastWorkType.trim().isEmpty()) ? null : lastWorkType;
+
+                // 총건수 기반으로 필요한 페이지 수를 계산 (999건/페이지)
+                long countStartMs = System.currentTimeMillis();
+                String jsonForCount = apiService.callApi(
+                        NaraApiConfig.BASE_URL,
+                        NaraApiConfig.PersonalAuthKey,
+                        "1",
+                        "1",
+                        bgn,
+                        end,
+                        "json",
+                        5000,
+                        5000
+                );
+                long totalCount = apiService.toGridRows(jsonForCount).totalCount;
+                log.info(String.format("[시간측정] UI 전체저장 - totalCount 조회 | %d ms", System.currentTimeMillis() - countStartMs));
+
+                int pagesNeeded = (int) Math.ceil(totalCount / 999.0);
+                int maxApiPages = Math.max(1, Math.min(pagesNeeded, 500)); // 안전장치
+
+                long fetchStartMs = System.currentTimeMillis();
+                List<Map<String, String>> rows = new ArrayList<>(apiService.fetchAllFilteredRows(
+                        NaraApiConfig.BASE_URL,
+                        NaraApiConfig.PersonalAuthKey,
+                        bgn,
+                        end,
+                        minAmt,
+                        searchOpt,
+                        workOpt,
+                        maxApiPages,
+                        15_000,
+                        30_000
+                ));
+                log.info(String.format("[시간측정] UI 전체저장 - fetchAllFilteredRows | %d 건 | %d ms", rows.size(), System.currentTimeMillis() - fetchStartMs));
+                log.info(String.format("[시간측정] UI 전체저장 전체 | %d ms", System.currentTimeMillis() - saveAllStartMs));
+                return rows;
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    List<Map<String, String>> rows = get();
+                    if (rows == null || rows.isEmpty()) {
+                        setStatus("완료: 0건");
+                        JOptionPane.showMessageDialog(frame, "저장할 데이터가 없습니다.", "안내", JOptionPane.INFORMATION_MESSAGE);
+                        return;
+                    }
+                    writeCsvFromRows(rows, file);
+                    setStatus("완료: 전체 " + rows.size() + "건 CSV 저장");
+                    JOptionPane.showMessageDialog(frame, "저장 완료:\n" + file.getAbsolutePath(), "OK", JOptionPane.INFORMATION_MESSAGE);
+                } catch (Exception ex) {
+                    setStatus("오류 발생");
+                    JOptionPane.showMessageDialog(frame, ex.getMessage(), "저장 오류", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        };
+        worker.execute();
+    }
+
+    /*
+    현재 테이블(현재 페이지) 기준 CSV 저장
+    */
+    private void writeCsvFromTableModel(File file) throws Exception {
         try (OutputStream os = new FileOutputStream(file);
              OutputStreamWriter osw = new OutputStreamWriter(os, StandardCharsets.UTF_8);
              BufferedWriter bw = new BufferedWriter(osw)) {
 
-            bw.write("\uFEFF");
+            bw.write("\uFEFF"); // UTF-8 BOM (엑셀 호환)
 
             for (int c = 0; c < tableModel.getColumnCount(); c++) {
                 bw.append(tableModel.getColumnName(c));
@@ -542,10 +658,49 @@ public final class NaraGetSwing {
                 }
                 bw.newLine();
             }
-
-            JOptionPane.showMessageDialog(frame, "저장 완료:\n" + file.getAbsolutePath(), "OK", JOptionPane.INFORMATION_MESSAGE);
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(frame, ex.getMessage(), "저장 오류", JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    /*
+    전체 결과(행 목록) 기준 CSV 저장
+    - 컬럼 순서는 화면 테이블과 동일(순번 + BidItemColumn.KEY_LIST)
+    */
+    private void writeCsvFromRows(List<Map<String, String>> rows, File file) throws Exception {
+        try (OutputStream os = new FileOutputStream(file);
+             OutputStreamWriter osw = new OutputStreamWriter(os, StandardCharsets.UTF_8);
+             BufferedWriter bw = new BufferedWriter(osw)) {
+
+            bw.write("\uFEFF"); // UTF-8 BOM (엑셀 호환)
+
+            // 헤더는 현재 테이블 컬럼명을 그대로 사용
+            for (int c = 0; c < tableModel.getColumnCount(); c++) {
+                bw.append(tableModel.getColumnName(c));
+                if (c < tableModel.getColumnCount() - 1) bw.append(',');
+            }
+            bw.newLine();
+
+            for (int i = 0; i < rows.size(); i++) {
+                Map<String, String> row = rows.get(i);
+
+                // 0열: 순번 (없으면 i+1)
+                writeCsvCell(bw, row.getOrDefault("순번", String.valueOf(i + 1)));
+                bw.append(',');
+
+                // 나머지 컬럼: BidItemColumn.KEY_LIST 순서대로
+                for (int k = 0; k < BidItemColumn.KEY_LIST.size(); k++) {
+                    String key = BidItemColumn.KEY_LIST.get(k);
+                    String v = row.getOrDefault(key, "");
+                    writeCsvCell(bw, v);
+                    if (k < BidItemColumn.KEY_LIST.size() - 1) bw.append(',');
+                }
+                bw.newLine();
+            }
+        }
+    }
+
+    private void writeCsvCell(BufferedWriter bw, String value) throws Exception {
+        String v = (value == null) ? "" : value;
+        v = v.replace("\"", "\"\"");
+        bw.append('\"').append(v).append('\"');
     }
 }

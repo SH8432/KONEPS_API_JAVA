@@ -7,6 +7,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.logging.Logger;
 
 /*
 나라장터 API HTTP 호출 전담.
@@ -14,6 +15,8 @@ import java.time.Duration;
 비즈니스 로직·파싱은 Service 계층에서 처리.
  */
 public final class NaraApiClient {
+
+    private static final Logger log = Logger.getLogger(NaraApiClient.class.getName());
 
     /*
     GET 요청으로 API를 호출하고 응답 본문(JSON 문자열)을 반환.
@@ -55,9 +58,13 @@ public final class NaraApiClient {
                 .GET()
                 .build();
 
+        long startMs = System.currentTimeMillis();
         // API 호출 및 응답 처리
         HttpResponse<String> response =
                 client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        long elapsedMs = System.currentTimeMillis() - startMs;
+
+        log.info(String.format("[시간측정] HTTP get | pageNo=%s | %d ms", pageNo, elapsedMs));
 
         // 응답 상태 코드 확인 (200 OK 아니면 예외 발생)
         if (response.statusCode() != 200) {
